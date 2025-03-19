@@ -1,2 +1,1 @@
-# transparent-supply-chain
-My first blockchain project
+# Blockchain Solution to Supply Chain
