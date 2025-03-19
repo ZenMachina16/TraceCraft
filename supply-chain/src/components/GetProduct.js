@@ -1,186 +1,345 @@
 import React, { useState, useEffect } from "react";
-
-import { Html5QrcodeScanner } from "html5-qrcode";
-import {
-  Container,
-  TextField,
-  Button,
-  Typography,
-  CircularProgress,
-  Box,
-  Card,
-  CardContent,
-  Divider,
-} from "@mui/material";
+import Web3 from "web3";
+import { contractAddress, contractABI } from "../config/contractConfig";
+import { Container, TextField, Button, Typography, Box, Paper, Divider, Drawer, List, ListItem, ListItemText, CssBaseline, AppBar, Toolbar, IconButton, Card, CardContent, Grid } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-const GetProduct = ({ contract }) => {
-  const [productId, setProductId] = useState(1);
-  const [product, setProduct] = useState(null);
-  const [courierAddress, setCourierAddress] = useState(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [loading, setLoading] = useState(false);
+// Fix for default marker icon issue in Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
-  // Function to fetch product details and the courier assigned
+const styles = {
+  container: {
+    paddingTop: "20px",
+    backgroundColor: "#f5f7fa",
+    color: "#333",
+    fontFamily: "'Poppins', sans-serif",
+  },
+  header: {
+    color: "#1976d2",
+    fontWeight: "600",
+  },
+  button: {
+    backgroundColor: "#1976d2",
+    color: "white",
+    '&:hover': {
+      backgroundColor: "#1565c0",
+    },
+  },
+  paper: {
+    padding: "20px",
+    borderRadius: "10px",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+  },
+  alert: {
+    marginTop: "20px",
+  },
+  productDetails: {
+    marginTop: "20px",
+  },
+  mapContainer: {
+    height: "400px",
+    marginTop: "20px",
+  },
+  card: {
+    marginBottom: "20px",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+    borderRadius: "10px",
+  },
+};
+
+const GetProduct = () => {
+  const [productId, setProductId] = useState("");
+  const [productDetails, setProductDetails] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [web3, setWeb3] = useState(null);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Initialize MetaMask and contract
+  useEffect(() => {
+    const initializeWeb3AndContract = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({
+            method: "eth_requestAccounts",
+          });
+          setWalletAddress(accounts[0]);
+
+          const web3Instance = new Web3(window.ethereum);
+          setWeb3(web3Instance);
+
+          const contractInstance = new web3Instance.eth.Contract(contractABI, contractAddress);
+          setContract(contractInstance);
+        } catch (error) {
+          console.error("Error connecting to MetaMask or initializing contract:", error);
+        }
+      } else {
+        console.error("MetaMask is not installed.");
+      }
+    };
+
+    initializeWeb3AndContract();
+  }, []);
+
+  // Fetch product details
   const getProduct = async () => {
-    setLoading(true);
-
-    try {
-      // Fetch product details
-      const productDetails = await contract.methods.getProduct(productId).call();
-      setProduct(productDetails);
-
-      // Fetch courier address for the product
-      const courier = await contract.methods.getCourierForProduct(productId).call();
-      const cleanedCourier = courier.trim();
-      setCourierAddress(cleanedCourier);
-    } catch (error) {
-      console.error("Error retrieving product:", error);
-    }
-
-    setLoading(false);
-  };
-
-  // Start QR code scanner
-  const startScan = () => {
-    const readerElement = document.getElementById("reader");
-    if (!readerElement) {
-      console.error("Scanner element not found in DOM!");
+    if (!contract) {
+      console.error("Contract instance is not available.");
       return;
     }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader",
-      { fps: 10, qrbox: 250 },
-      false
-    );
-
-    html5QrcodeScanner.render(
-      (decodedText) => {
-        setProductId(decodedText); // Set product ID from the QR code
-        getProduct(); // Fetch product details
-        html5QrcodeScanner.clear(); // Stop scanner after successful scan
-        setIsScanning(false);
-      },
-      (error) => {
-        console.error("QR Scan Error: ", error);
-      }
-    );
-
-    setIsScanning(true);
+    try {
+      const product = await contract.methods.getProduct(productId).call();
+      setProductDetails(product);
+      console.log("Product details retrieved:", product);
+    } catch (error) {
+      console.error("Error retrieving product:", error);
+    }
   };
 
-  // Set marker icon for Leaflet
-  const markerIcon = new L.Icon({
-    iconUrl:
-      "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowUrl:
-      "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    shadowSize: [41, 41],
-  });
+  // Add this utility function at the top of the file
+  const convertUnixToDateTime = (timestamp) => {
+    if (!timestamp) return "Not available";
+    // Multiply by 1000 since contract stores in seconds but JS uses milliseconds
+    return new Date(timestamp * 1000).toLocaleString();
+  };
+
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   return (
-    <Container maxWidth="md" style={{ marginTop: "20px" }}>
-      <Typography variant="h4" align="center" gutterBottom>
-        Get Product Details
-      </Typography>
-
-      {/* Input and Button Controls */}
-      <Box display="flex" justifyContent="center" alignItems="center" mb={3}>
-        <TextField
-          label="Enter Product ID"
-          variant="outlined"
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          style={{ marginRight: "10px" }}
-        />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={getProduct}
-          disabled={loading}
-        >
-          Get Product
-        </Button>
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={startScan}
-          style={{ marginLeft: "10px" }}
-        >
-          {isScanning ? "Stop Scanner" : "Scan QR Code"}
-        </Button>
-      </Box>
-
-      {/* QR Code Scanner */}
-      {isScanning && <div id="reader" style={{ marginTop: "20px" }}></div>}
-      {!isScanning && <div id="reader" style={{ display: "none" }}></div>}
-
-      {/* Loading Indicator */}
-      {loading && (
-        <Box display="flex" justifyContent="center" alignItems="center" mt={3}>
-          <CircularProgress />
+    <Box sx={{ display: "flex" }}>
+      <CssBaseline />
+      <Drawer
+        sx={{
+          width: 240,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: 240,
+            boxSizing: "border-box",
+            boxShadow: "4px 0px 8px rgba(0, 0, 0, 0.2)",
+          },
+        }}
+        variant="persistent"
+        anchor="left"
+        open={sidebarOpen}
+      >
+        <Box sx={{ paddingTop: 5, textAlign: "center" }}>
+          <Typography variant="h5" color="primary" gutterBottom>
+            Product Dashboard
+          </Typography>
         </Box>
-      )}
-
-      {/* Display Product Details */}
-      {product && (
-        <Card style={{ marginTop: "20px" }}>
-          <CardContent>
-            <Typography variant="h5" gutterBottom>
-              Product Details:
-            </Typography>
-            <Divider style={{ marginBottom: "15px" }} />
-            <Typography>Product ID: {product[0]}</Typography>
-            <Typography>Product Name: {product[1]}</Typography>
-            <Typography>Product Price: {product[2]}</Typography>
-            <Typography>Manufacturer Name: {product[3]}</Typography>
-            <Typography>Manufacturer Details: {product[4]}</Typography>
-            <Typography>Longitude: {product[5]}</Typography>
-            <Typography>Latitude: {product[6]}</Typography>
-            <Typography>Category: {product[7]}</Typography>
-
-            <Divider style={{ margin: "15px 0" }} />
-            {courierAddress && courierAddress !== "" ? (
-              <Typography>
-                <strong>Courier Address:</strong> {courierAddress}
-              </Typography>
-            ) : (
-              <Typography>No courier assigned yet.</Typography>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Map Integration */}
-      {product && product[5] && product[6] && (
-        <Box style={{ height: "400px", marginTop: "20px" }}>
-          <MapContainer
-            center={[parseFloat(product[6]), parseFloat(product[5])]}
-            zoom={13}
-            style={{ height: "400px", width: "100%" }}
+        <List>
+          <ListItem
+            button
+            sx={{
+              backgroundColor: "#1976d2",
+              color: "white",
+              '&:hover': {
+                backgroundColor: "#1565c0",
+              },
+            }}
           >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            <Marker
-              position={[parseFloat(product[6]), parseFloat(product[5])]}
-              icon={markerIcon}
+            <ListItemText primary="Get Product Details" />
+          </ListItem>
+        </List>
+      </Drawer>
+
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          backgroundColor: "#f4f6f8",
+          padding: "0.5rem",
+          height: "100vh",
+          overflowY: "auto",
+          transition: "margin-left 0.3s",
+        }}
+      >
+        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{
+                marginRight: 2,
+              }}
+              onClick={toggleSidebar}
             >
-              <Popup>
-                {product[1]} - {product[7]}
-              </Popup>
-            </Marker>
-          </MapContainer>
-        </Box>
-      )}
-    </Container>
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap>
+              Product Dashboard
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        <Container maxWidth="lg" sx={{ mt: 4 }} style={styles.container}>
+          <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }} style={styles.paper}>
+            <Typography variant="h4" align="center" gutterBottom style={styles.header}>
+              Get Product Details
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+            <Box component="form" noValidate autoComplete="off">
+              <TextField
+                label="Product ID"
+                type="number"
+                fullWidth
+                value={productId}
+                onChange={(e) => setProductId(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              <Box sx={{ mt: 3, textAlign: "center" }}>
+                <Button
+                  variant="contained"
+                  style={styles.button}
+                  onClick={getProduct}
+                  fullWidth
+                  disabled={!walletAddress || !contract}
+                >
+                  Get Product
+                </Button>
+              </Box>
+            </Box>
+            {productDetails && (
+              <Box sx={{ mt: 4 }} style={styles.productDetails}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Card sx={styles.card}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>Product Details:</Typography>
+                        <Typography>ID: {productDetails.id}</Typography>
+                        <Typography>Batch ID: {productDetails.batchId}</Typography>
+                        <Typography>Manufacturer Address: {productDetails.manufacturer}</Typography>
+                        <Typography>Logistics Partner Address: {productDetails.logisticsPartner}</Typography>
+                        <Typography>Customer Address: {productDetails.customer}</Typography>
+                        <Typography>Customer Name: {productDetails.customerName}</Typography>
+                        <Typography>Customer Address: {productDetails.customerAddress}</Typography>
+                        <Typography>Customer Phone Number: {productDetails.customerPhoneNumber}</Typography>
+                        <Typography>Customer Email: {productDetails.customerEmail}</Typography>
+                        <Typography>Delivery Status: {productDetails.deliveryStatus}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Card sx={styles.card}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>Batch Details:</Typography>
+                        {productDetails.batchDetails ? (
+                          <>
+                            <Typography>ID: {productDetails.batchDetails.id}</Typography>
+                            <Typography>Name: {productDetails.batchDetails.name}</Typography>
+                            <Typography>Price: {productDetails.batchDetails.price} INR</Typography>
+                            <Typography>Manufacturer Name: {productDetails.batchDetails.manufacturerName}</Typography>
+                            <Typography>Manufacturer Details: {productDetails.batchDetails.manufacturerDetails}</Typography>
+                            <Typography>
+                              Longitude: {productDetails.batchDetails.longitude || "Not available"}
+                            </Typography>
+                            <Typography>
+                              Latitude: {productDetails.batchDetails.latitude || "Not available"}
+                            </Typography>
+                            <Typography>Category: {productDetails.batchDetails.category}</Typography>
+                            <Typography>Manufacturer Address: {productDetails.batchDetails.manufacturer}</Typography>
+                            <Typography>Certificate Authority: {productDetails.batchDetails.certificateAuthority}</Typography>
+                            <Typography>Certificate Document Hash: {productDetails.batchDetails.certificateDocHash}</Typography>
+                          </>
+                        ) : (
+                          <Typography>No batch details available.</Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Card sx={styles.card}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>Checkpoints:</Typography>
+                        {productDetails.checkpoints && productDetails.checkpoints.length > 0 ? (
+                          productDetails.checkpoints.map((checkpoint, index) => (
+                            <Box key={index} sx={{ mt: 1 }}>
+                              <Typography>Checkpoint {index + 1}:</Typography>
+                              <Typography>Date: {checkpoint.date}</Typography>
+                              <Typography>Location: {checkpoint.location}</Typography>
+                              <Typography>Latitude: {checkpoint.longitude}</Typography>
+                              <Typography>Longitude: {checkpoint.latitude}</Typography>
+                              <Typography>
+                                Check-in Time: {convertUnixToDateTime(checkpoint.checkInTime)}
+                              </Typography>
+                              <Typography>
+                                Check-out Time: {convertUnixToDateTime(checkpoint.checkOutTime)}
+                              </Typography>
+                            </Box>
+                          ))
+                        ) : (
+                          <Typography>No checkpoints available.</Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Card sx={styles.card}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>Map:</Typography>
+                        {productDetails.batchDetails.latitude && productDetails.batchDetails.longitude && (
+                          <MapContainer
+                            center={[productDetails.batchDetails.latitude, productDetails.batchDetails.longitude]}
+                            zoom={10}
+                            style={styles.mapContainer}
+                          >
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            {/* Manufacturer marker */}
+                            <Marker
+                              position={[
+                                productDetails.batchDetails.latitude,
+                                productDetails.batchDetails.longitude,
+                              ]}
+                              icon={L.divIcon({
+                                className: "custom-icon",
+                                html: `<div style="background-color:blue; color:white; border-radius:50%; width:24px; height:24px; display:flex; justify-content:center; align-items:center;">0</div>`,
+                              })}
+                            >
+                              <Popup>Manufacturer Location</Popup>
+                            </Marker>
+
+                            {/* Checkpoints markers */}
+                            {productDetails.checkpoints &&
+                              productDetails.checkpoints.map((checkpoint, index) => (
+                                <Marker
+                                  key={index}
+                                  position={[checkpoint.longitude, checkpoint.latitude]}
+                                  icon={L.divIcon({
+                                    className: "custom-icon",
+                                    html: `<div style="background-color:red; color:white; border-radius:50%; width:24px; height:24px; display:flex; justify-content:center; align-items:center;">${index + 1}</div>`,
+                                  })}
+                                >
+                                  <Popup>
+                                    Checkpoint {index + 1}:<br />
+                                    Check-in: {convertUnixToDateTime(checkpoint.checkInTime)}<br />
+                                    Check-out: {convertUnixToDateTime(checkpoint.checkOutTime)}
+                                  </Popup>
+                                </Marker>
+                              ))}
+                          </MapContainer>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+          </Paper>
+        </Container>
+      </Box>
+    </Box>
   );
 };
 

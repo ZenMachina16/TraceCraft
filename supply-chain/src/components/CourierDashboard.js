@@ -12,18 +12,38 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  MenuItem,
+  CssBaseline,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
 } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import Web3 from "web3";
 import { contractABI, contractAddress } from "../config/contractConfig"; // Ensure the correct path
 import { useNavigate } from "react-router-dom"; // React Router for navigation
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
+
+// Components for dynamic right-hand side content
+import AssignCourier from './AssignCourier'; // Assume you have this component
+import AllProducts from './AllProducts'; // Assume you have this component
+import AddCheckpoints from './CheckpointComponent'; // Assume you have this component
 
 const CourierDashboard = () => {
   const [checkpointDetails, setCheckpointDetails] = useState({
     productId: "",
     location: "",
+    latitude: "", // Auto-populated latitude
+    longitude: "", // Auto-populated longitude
     checkInTime: Date.now(), // Set default to current timestamp
     checkOutTime: Date.now(), // Set default to current timestamp
   });
+  const [deliveryStatus, setDeliveryStatus] = useState("in-transit"); // Default delivery status
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
@@ -32,7 +52,35 @@ const CourierDashboard = () => {
   const [web3, setWeb3] = useState(null);
   const [contractInstance, setContractInstance] = useState(null);
   const [account, setAccount] = useState(""); // Declare account state
+  const [walletAddress, setWalletAddress] = useState(""); // Declare walletAddress state
   const navigate = useNavigate(); // Initialize react-router's navigate function
+
+  const [activeButton, setActiveButton] = useState('assignCourier'); // Default active button
+  const [rightContent, setRightContent] = useState(<AssignCourier />); // Default right-hand content
+
+  // Automatically fetch latitude and longitude
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCheckpointDetails((prevDetails) => ({
+            ...prevDetails,
+            latitude: position.coords.latitude.toString(),
+            longitude: position.coords.longitude.toString(),
+          }));
+        },
+        (error) => {
+          setError(true);
+          setMessage("Could not fetch device location. Please enable location services.");
+          setSnackbarOpen(true);
+        }
+      );
+    } else {
+      setError(true);
+      setMessage("Geolocation is not supported by this browser.");
+      setSnackbarOpen(true);
+    }
+  }, []);
 
   // Handle changes in input fields
   const handleInputChange = (e) => {
@@ -43,6 +91,11 @@ const CourierDashboard = () => {
     }));
   };
 
+  // Handle changes in delivery status input field
+  const handleDeliveryStatusChange = (e) => {
+    setDeliveryStatus(e.target.value);
+  };
+
   // Convert datetime string to UNIX timestamp (in seconds)
   const convertToUnixTimestamp = (datetime) => {
     return Math.floor(new Date(datetime).getTime() / 1000);
@@ -50,16 +103,21 @@ const CourierDashboard = () => {
 
   // Add a checkpoint
   const handleAddCheckpoint = async () => {
-    if (!contractInstance || !account) {
+    if (!contractInstance || !walletAddress) {
       setError(true);
-      setMessage("Contract or account not available.");
+      setMessage("Contract or wallet address not available.");
       setSnackbarOpen(true);
       return;
     }
 
-    if (!checkpointDetails.productId || !checkpointDetails.location) {
+    if (
+      !checkpointDetails.productId ||
+      !checkpointDetails.location ||
+      !checkpointDetails.latitude ||
+      !checkpointDetails.longitude
+    ) {
       setError(true);
-      setMessage("Please provide product ID and location.");
+      setMessage("Please provide all required fields.");
       setSnackbarOpen(true);
       return;
     }
@@ -74,18 +132,32 @@ const CourierDashboard = () => {
         .addCheckpoint(
           checkpointDetails.productId,
           checkpointDetails.location,
+          checkpointDetails.latitude,
+          checkpointDetails.longitude,
           checkInTimestamp,
           checkOutTimestamp
         )
-        .send({ from: account });
+        .send({ from: walletAddress });
+
+      await contractInstance.methods
+        .markAsDelivered(checkpointDetails.productId, deliveryStatus)
+        .send({ from: walletAddress });
 
       setError(false);
-      setMessage("Checkpoint added successfully.");
-      setCheckpointDetails({ productId: "", location: "", checkInTime: Date.now(), checkOutTime: Date.now() });
+      setMessage("Checkpoint and delivery status updated successfully.");
+      setCheckpointDetails({
+        productId: "",
+        location: "",
+        latitude: "",
+        longitude: "",
+        checkInTime: Date.now(),
+        checkOutTime: Date.now(),
+      });
+      setDeliveryStatus("in-transit"); // Reset to default
     } catch (err) {
-      console.error(err);
+      console.error("Error adding checkpoint or updating delivery status:", err);
       setError(true);
-      setMessage("Error adding checkpoint. Please try again.");
+      setMessage("Error adding checkpoint or updating delivery status. Please try again.");
     } finally {
       setLoading(false);
       setSnackbarOpen(true);
@@ -114,6 +186,19 @@ const CourierDashboard = () => {
           contractAddress
         );
         setContractInstance(contractInstance);
+
+        // Fetch the user's wallet address from Firestore
+        const user = auth.currentUser;
+        if (user) {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            setWalletAddress(userDoc.data().walletAddress);
+          } else {
+            console.error("User document not found in Firestore.");
+          }
+        } else {
+          console.error("No authenticated user found.");
+        }
       };
 
       initializeWeb3();
@@ -125,149 +210,132 @@ const CourierDashboard = () => {
     }
   }, []);
 
-  // Navigate to the assign courier page
-  const handleAssignCourier = () => {
-    navigate("/assign-courier");
-  };
+  // Handle sidebar button click
+  const handleSidebarClick = (action) => {
+    setActiveButton(action);
 
-  // Navigate to the all products page
-  const handleViewAllProducts = () => {
-    navigate("/all-products");
+    if (action === 'assignCourier') {
+      setRightContent(<AssignCourier />);
+    } else if (action === 'allProducts') {
+      setRightContent(<AllProducts />);
+    } else if (action === 'addCheckpoints') {
+      setRightContent(<AddCheckpoints />);
+    }
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 5 }}>
-      <Box textAlign="center" mb={4}>
-        <Typography variant="h4" gutterBottom>
-          Welcome, Courier!
-        </Typography>
-        <Typography variant="body1" color="textSecondary">
-          You are logged in as a Courier. Manage your assignments and view product details below.
-        </Typography>
-      </Box>
-      <Grid container spacing={4}>
-        <Grid item xs={12} sm={6}>
-          <Card sx={{ textAlign: "center", boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
-                Assign Courier
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Assign yourself to transport and deliver specific products.
-              </Typography>
-            </CardContent>
-            <CardActions>
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                onClick={handleAssignCourier}
-              >
-                Go to Assign Courier
-              </Button>
-            </CardActions>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <Card sx={{ textAlign: "center", boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
-                View All Products
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Browse all products and monitor delivery details.
-              </Typography>
-            </CardContent>
-            <CardActions>
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={handleViewAllProducts}
-              >
-                Go to All Products
-              </Button>
-            </CardActions>
-          </Card>
-        </Grid>
-        <Grid item xs={12}>
-          <Card sx={{ textAlign: "center", boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
-                Add Delivery Checkpoint
-              </Typography>
-              <TextField
-                label="Product ID"
-                variant="outlined"
-                name="productId"
-                value={checkpointDetails.productId}
-                onChange={handleInputChange}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Location"
-                variant="outlined"
-                name="location"
-                value={checkpointDetails.location}
-                onChange={handleInputChange}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Check-in Time"
-                variant="outlined"
-                name="checkInTime"
-                value={checkpointDetails.checkInTime}
-                onChange={handleInputChange}
-                fullWidth
-                sx={{ mb: 2 }}
-                type="datetime-local"
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
-              <TextField
-                label="Check-out Time"
-                variant="outlined"
-                name="checkOutTime"
-                value={checkpointDetails.checkOutTime}
-                onChange={handleInputChange}
-                fullWidth
-                sx={{ mb: 2 }}
-                type="datetime-local"
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleAddCheckpoint}
-                fullWidth
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : "Add Checkpoint"}
-              </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+    <Box sx={{ display: "flex" }}>
+      <CssBaseline />
+      <Drawer
+        sx={{
+          width: 240,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: 240,
+            boxSizing: "border-box",
+            boxShadow: "4px 0px 8px rgba(0, 0, 0, 0.2)",
+          },
+        }}
+        variant="persistent"
+        anchor="left"
+        open={true}
       >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={error ? "error" : "success"}
-          sx={{ width: "100%" }}
-        >
-          {message}
-        </Alert>
-      </Snackbar>
-    </Container>
+        <Box sx={{ paddingTop: 5, textAlign: "center" }}>
+          <Typography variant="h5" color="primary" gutterBottom>
+            Courier Dashboard
+          </Typography>
+        </Box>
+        <List>
+          <ListItem
+            button
+            onClick={() => handleSidebarClick('assignCourier')}
+            sx={{
+              backgroundColor: activeButton === 'assignCourier' ? '#1976d2' : 'transparent',
+              color: activeButton === 'assignCourier' ? 'white' : 'inherit',
+              '&:hover': {
+                backgroundColor: '#1976d2',
+              },
+            }}
+          >
+            <ListItemText primary="Assign Courier" />
+          </ListItem>
+          <ListItem
+            button
+            onClick={() => handleSidebarClick('allProducts')}
+            sx={{
+              backgroundColor: activeButton === 'allProducts' ? '#1976d2' : 'transparent',
+              color: activeButton === 'allProducts' ? 'white' : 'inherit',
+              '&:hover': {
+                backgroundColor: '#1976d2',
+              },
+            }}
+          >
+            <ListItemText primary="View All Products" />
+          </ListItem>
+          <ListItem
+            button
+            onClick={() => handleSidebarClick('addCheckpoints')}
+            sx={{
+              backgroundColor: activeButton === 'addCheckpoints' ? '#1976d2' : 'transparent',
+              color: activeButton === 'addCheckpoints' ? 'white' : 'inherit',
+              '&:hover': {
+                backgroundColor: '#1976d2',
+              },
+            }}
+          >
+            <ListItemText primary="Add Checkpoints" />
+          </ListItem>
+        </List>
+      </Drawer>
+
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          backgroundColor: "#f4f6f8",
+          padding: "0.5rem",
+          height: "100vh",
+          overflowY: "auto",
+          transition: "margin-left 0.3s",
+        }}
+      >
+        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{
+                marginRight: 2,
+              }}
+              onClick={() => {}}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap>
+              Courier Dashboard
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        <Box sx={{ paddingTop: "64px", paddingBottom: "2rem" }}>
+          {rightContent}
+          <Snackbar
+            open={snackbarOpen}
+            autoHideDuration={6000}
+            onClose={handleCloseSnackbar}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          >
+            <Alert
+              onClose={handleCloseSnackbar}
+              severity={error ? "error" : "success"}
+              sx={{ width: "100%" }}
+            >
+              {message}
+            </Alert>
+          </Snackbar>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

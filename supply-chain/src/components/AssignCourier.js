@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import Web3 from "web3";
-import { Html5QrcodeScanner } from "html5-qrcode";
 import {
   Container,
-  Typography,
-  TextField,
-  Button,
   Box,
-  Alert,
-  Snackbar,
+  Typography,
+  Button,
+  TextField,
   CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { contractAddress, contractABI } from "../config/contractConfig"; // Adjust the import path as needed
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
+import Web3 from "web3";
+import { Html5QrcodeScanner } from "html5-qrcode"; // Import the Html5QrcodeScanner
 
 const AssignCourier = () => {
   const [productId, setProductId] = useState("");
@@ -20,21 +22,35 @@ const AssignCourier = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [deliveryStatus, setDeliveryStatus] = useState("");
   const scannerRef = useRef(null);
   const [scannerInstance, setScannerInstance] = useState(null);
+  const [account, setAccount] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
 
   const web3 = new Web3(Web3.givenProvider || "http://localhost:8545");
   const contract = new web3.eth.Contract(contractABI, contractAddress);
 
-  // Fetch user account
-  const [account, setAccount] = useState("");
-
   useEffect(() => {
     const loadAccount = async () => {
       const accounts = await web3.eth.requestAccounts();
-      setAccount(accounts[0]); // Using the first account
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+      }
+
+      // Fetch the user's wallet address from Firestore
+      const user = auth.currentUser;
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          setWalletAddress(userDoc.data().walletAddress);
+        } else {
+          console.error("User document not found in Firestore.");
+        }
+      } else {
+        console.error("No authenticated user found.");
+      }
     };
+
     loadAccount();
   }, []);
 
@@ -50,26 +66,9 @@ const AssignCourier = () => {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      await contract.methods.assignCourier(productId).send({ from: account });
-      setError(false);
-      setMessage(`Product ${productId} has been assigned to you as the courier.`);
-    } catch (err) {
-      console.error(err);
+    if (!walletAddress) {
       setError(true);
-      setMessage("Error assigning courier. Please try again.");
-    }
-
-    setLoading(false);
-    setSnackbarOpen(true);
-  };
-
-  const handleMarkAsDelivered = async () => {
-    if (!productId || !deliveryStatus) {
-      setError(true);
-      setMessage("Please enter a valid product ID and delivery status.");
+      setMessage("Wallet address not found.");
       setSnackbarOpen(true);
       return;
     }
@@ -78,17 +77,15 @@ const AssignCourier = () => {
 
     try {
       await contract.methods
-        .markAsDelivered(productId, deliveryStatus)
-        .send({ from: account });
+        .assignCourier(productId)
+        .send({ from: walletAddress });
 
       setError(false);
-      setMessage(
-        `Product ${productId} has been marked as delivered with status: ${deliveryStatus}.`
-      );
+      setMessage(`Product ${productId} has been assigned to you as the courier.`);
     } catch (err) {
       console.error(err);
       setError(true);
-      setMessage("Error marking product as delivered. Please try again.");
+      setMessage("Error assigning product to courier. Please try again.");
     } finally {
       setLoading(false);
       setSnackbarOpen(true);
@@ -101,12 +98,11 @@ const AssignCourier = () => {
 
   const startScanner = () => {
     if (scannerInstance) {
-      console.warn("Scanner already running!");
-      return;
+      scannerInstance.clear();
+      setScannerInstance(null);
     }
 
     if (!scannerRef.current) {
-      console.error("Scanner element not found in DOM!");
       return;
     }
 
@@ -118,14 +114,15 @@ const AssignCourier = () => {
     newScannerInstance.render(
       (decodedText) => {
         setProductId(decodedText);
+        setIsScanning(false);
         newScannerInstance.clear();
         setScannerInstance(null);
-        setIsScanning(false);
       },
       (error) => {
-        console.error("QR Scan Error: ", error);
+        console.error("QR Code scan error:", error);
       }
     );
+
     setScannerInstance(newScannerInstance);
     setIsScanning(true);
   };
@@ -138,15 +135,6 @@ const AssignCourier = () => {
     setIsScanning(false);
   };
 
-  useEffect(() => {
-    return () => {
-      if (scannerInstance) {
-        scannerInstance.clear();
-        setScannerInstance(null);
-      }
-    };
-  }, [scannerInstance]);
-
   return (
     <Container maxWidth="sm" style={{ marginTop: "20px" }}>
       <Typography variant="h4" align="center" gutterBottom>
@@ -154,10 +142,6 @@ const AssignCourier = () => {
       </Typography>
 
       <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-        <Typography variant="body1" gutterBottom>
-          <strong>Logistics Partner Address:</strong> {account}
-        </Typography>
-
         <TextField
           label="Enter Product ID"
           variant="outlined"
@@ -184,27 +168,6 @@ const AssignCourier = () => {
           fullWidth
         >
           {isScanning ? "Stop Scanner" : "Scan QR Code"}
-        </Button>
-
-        <TextField
-          label="Enter Delivery Status"
-          variant="outlined"
-          type="text"
-          value={deliveryStatus}
-          onChange={(e) => setDeliveryStatus(e.target.value)}
-          fullWidth
-          style={{ marginTop: "20px" }}
-        />
-
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleMarkAsDelivered}
-          fullWidth
-          disabled={loading}
-          style={{ marginTop: "10px" }}
-        >
-          {loading ? <CircularProgress size={24} /> : "Mark as Delivered"}
         </Button>
       </Box>
 

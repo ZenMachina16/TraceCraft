@@ -1,4 +1,4 @@
-const contractAddress = "0x680596EC968534B4df41Ad8B66Febe312a4aFD1c";
+const contractAddress = "0xd0A509A014Ec742b4251971dB1159C35d06D4a0e";
 
 const contractABI = [
   {
@@ -7,29 +7,23 @@ const contractABI = [
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "productId",
+        "name": "batchId",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "string",
-        "name": "location",
+        "name": "certificateAuthority",
         "type": "string"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "checkInTime",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "checkOutTime",
-        "type": "uint256"
+        "internalType": "string",
+        "name": "certificateDocHash",
+        "type": "string"
       }
     ],
-    "name": "CheckpointAdded",
+    "name": "BatchCertified",
     "type": "event"
   },
   {
@@ -38,7 +32,7 @@ const contractABI = [
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "productId",
+        "name": "batchId",
         "type": "uint256"
       },
       {
@@ -81,6 +75,92 @@ const contractABI = [
         "indexed": false,
         "internalType": "string",
         "name": "category",
+        "type": "string"
+      }
+    ],
+    "name": "BatchCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "productId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "location",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "longitude",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "latitude",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "checkInTime",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "checkOutTime",
+        "type": "uint256"
+      }
+    ],
+    "name": "CheckpointAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "productId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "batchId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "customerName",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "customerAddress",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "customerPhoneNumber",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "customerEmail",
         "type": "string"
       }
     ],
@@ -137,31 +217,6 @@ const contractABI = [
       {
         "indexed": false,
         "internalType": "string",
-        "name": "certificateAuthority",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "certificateDocHash",
-        "type": "string"
-      }
-    ],
-    "name": "ProductCertified",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "productId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
         "name": "deliveryStatus",
         "type": "string"
       },
@@ -174,6 +229,44 @@ const contractABI = [
     ],
     "name": "ProductDelivered",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_productId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_batchId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_customerName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_customerAddress",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_customerPhoneNumber",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_customerEmail",
+        "type": "string"
+      }
+    ],
+    "name": "addProduct",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [
@@ -218,7 +311,7 @@ const contractABI = [
         "type": "string"
       }
     ],
-    "name": "addProduct",
+    "name": "addBatch",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -227,7 +320,25 @@ const contractABI = [
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "_batchId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "_productId",
+        "type": "uint256"
+      }
+    ],
+    "name": "addProductToBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_batchId",
         "type": "uint256"
       },
       {
@@ -246,7 +357,7 @@ const contractABI = [
         "type": "string"
       }
     ],
-    "name": "certifyProduct",
+    "name": "certifyBatch",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -274,6 +385,16 @@ const contractABI = [
       {
         "internalType": "string",
         "name": "_location",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_longitude",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_latitude",
         "type": "string"
       },
       {
@@ -336,7 +457,7 @@ const contractABI = [
         "type": "uint256"
       }
     ],
-    "name": "getProduct",
+    "name": "getBatch",
     "outputs": [
       {
         "components": [
@@ -386,6 +507,135 @@ const contractABI = [
             "type": "address"
           },
           {
+            "internalType": "string",
+            "name": "certificateAuthority",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "digitalSignature",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "certificateDocHash",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "isCertified",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct BatchSupply.Batch",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_id",
+        "type": "uint256"
+      }
+    ],
+    "name": "getProduct",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "batchId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+              },
+              {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "price",
+                "type": "uint256"
+              },
+              {
+                "internalType": "string",
+                "name": "manufacturerName",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "manufacturerDetails",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "longitude",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "latitude",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "category",
+                "type": "string"
+              },
+              {
+                "internalType": "address",
+                "name": "manufacturer",
+                "type": "address"
+              },
+              {
+                "internalType": "string",
+                "name": "certificateAuthority",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "digitalSignature",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "certificateDocHash",
+                "type": "string"
+              },
+              {
+                "internalType": "bool",
+                "name": "isCertified",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct BatchSupply.Batch",
+            "name": "batchDetails",
+            "type": "tuple"
+          },
+          {
+            "internalType": "address",
+            "name": "manufacturer",
+            "type": "address"
+          },
+          {
             "internalType": "address",
             "name": "logisticsPartner",
             "type": "address"
@@ -394,6 +644,26 @@ const contractABI = [
             "internalType": "address",
             "name": "customer",
             "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "customerName",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "customerAddress",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "customerPhoneNumber",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "customerEmail",
+            "type": "string"
           },
           {
             "internalType": "string",
@@ -428,6 +698,16 @@ const contractABI = [
                 "type": "string"
               },
               {
+                "internalType": "string",
+                "name": "longitude",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "latitude",
+                "type": "string"
+              },
+              {
                 "internalType": "uint256",
                 "name": "checkInTime",
                 "type": "uint256"
@@ -438,12 +718,12 @@ const contractABI = [
                 "type": "uint256"
               }
             ],
-            "internalType": "struct ProductTrac.Checkpoint[]",
+            "internalType": "struct BatchSupply.Checkpoint[]",
             "name": "checkpoints",
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct ProductTrac.Product",
+        "internalType": "struct BatchSupply.Product",
         "name": "",
         "type": "tuple"
       }
@@ -455,6 +735,20 @@ const contractABI = [
   {
     "inputs": [],
     "name": "getAllProductIds",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
+    "inputs": [],
+    "name": "getAllBatchIds",
     "outputs": [
       {
         "internalType": "uint256[]",
@@ -482,6 +776,16 @@ const contractABI = [
         "type": "string[]"
       },
       {
+        "internalType": "string[]",
+        "name": "longitudes",
+        "type": "string[]"
+      },
+      {
+        "internalType": "string[]",
+        "name": "latitudes",
+        "type": "string[]"
+      },
+      {
         "internalType": "uint256[]",
         "name": "checkInTimes",
         "type": "uint256[]"
@@ -490,6 +794,41 @@ const contractABI = [
         "internalType": "uint256[]",
         "name": "checkOutTimes",
         "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_productId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCustomerDetails",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "customerName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "customerAddress",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "customerPhoneNumber",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "customerEmail",
+        "type": "string"
       }
     ],
     "stateMutability": "view",

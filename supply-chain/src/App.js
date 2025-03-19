@@ -14,7 +14,7 @@ import LoginPage from "./components/LoginPage";
 import SignupPage from "./components/SignupPage";
 import MetaMaskPage from "./components/MetaMaskPage"; // Ensure this is the correct component
 import LogisticsPartner from "./components/LogisticsPartner";
-import AllProducts from "./components/AllProducts";
+import AllProducts from "./components/AllProducts"; // Incorrect import for CheckpointComponent
 import ManufacturerDashboard from "./components/ManufacturerDashboard";
 import CourierDashboard from "./components/CourierDashboard";
 import { auth, db } from "./firebase"; // Assuming firebase is configured
@@ -23,6 +23,7 @@ import { doc, getDoc } from "firebase/firestore";
 import CertificateAuthority from "./components/CertificateAuthority";
 import { contractABI, contractAddress } from "./config/contractConfig";
 import CheckpointComponent from "./components/CheckpointComponent"; // Correct import for CheckpointComponent
+import AddBatch from "./components/AddBatch";
 
 const App = () => {
   const [manufacturerAccount, setManufacturerAccount] = useState(null);
@@ -75,6 +76,9 @@ const App = () => {
     <Router>
       <div className="App">
         <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+
           {/* Step 1: Sign Up */}
           <Route path="/signup" element={<SignupPage setStep={setStep} />} />
 
@@ -105,6 +109,10 @@ const App = () => {
                 path="/get-product"
                 element={<GetProduct contract={contract} />}
               />
+              <Route
+                path="/add-batch"
+                element={<AddBatch contract={contract} />}
+              />
             </>
           )}
 
@@ -116,6 +124,10 @@ const App = () => {
                 element={<CourierDashboard contract={contract} account={courierAccount} />}
               />
               <Route
+                path="/checkpoint"
+                element={<CheckpointComponent contract={contract} account={courierAccount} />}
+              />
+              <Route
                 path="/assign-courier"
                 element={<AssignCourier contract={contract} account={courierAccount} />}
               />
@@ -123,6 +135,8 @@ const App = () => {
                 path="/logistics-partner"
                 element={<LogisticsPartner contract={contract} account={courierAccount} />}
               />
+              
+              
             </>
           )}
 
@@ -132,6 +146,16 @@ const App = () => {
               <Route
                 path="/certificate-authority"
                 element={<CertificateAuthority contract={contract} account={certificateAuthorityAccount} />}
+              />
+            </>
+          )}
+
+           {/* Customer Dashboard */}
+           {isAuthenticated && userRole === "Customer" && (
+            <>
+              <Route
+                path="/get-Product"
+                element={<GetProduct contract={contract} account={certificateAuthorityAccount} />}
               />
             </>
           )}
@@ -161,7 +185,7 @@ const App = () => {
           />
 
           {/* Fallback for Unauthorized Access */}
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/" />} />{" "}
         </Routes>
       </div>
     </Router>

@@ -15,7 +15,9 @@ import {
   Alert,
   Box,
   Grid,
+  CssBaseline,
 } from "@mui/material";
+import "./SignupPage.css";
 
 const SignupPage = ({ setStep }) => {
   const [email, setEmail] = useState("");
@@ -56,83 +58,83 @@ const SignupPage = ({ setStep }) => {
   };
 
   return (
-    <Container maxWidth="sm" style={{ marginTop: "2rem" }}>
-      <Box textAlign="center">
-        <Typography variant="h4" gutterBottom>
-          Create an Account
-        </Typography>
-        <Typography variant="body1" color="textSecondary" gutterBottom>
-          Please fill in the details to sign up for your account.
-        </Typography>
-      </Box>
-      <Box
-        component="form"
-        onSubmit={handleSignUp}
-        sx={{
-          mt: 4,
-          display: "flex",
-          flexDirection: "column",
-          gap: 3,
-        }}
-      >
-        <TextField
-          label="Email"
-          variant="outlined"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          fullWidth
-          required
-        />
-        <TextField
-          label="Password"
-          type="password"
-          variant="outlined"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          fullWidth
-          required
-        />
-        <FormControl fullWidth>
-          <InputLabel id="role-select-label">Role</InputLabel>
-          <Select
-            labelId="role-select-label"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            required
-          >
-            <MenuItem value="" disabled>
-              Select Role
-            </MenuItem>
-            <MenuItem value="Manufacturer">Manufacturer</MenuItem>
-            <MenuItem value="Courier">Courier</MenuItem>
-            <MenuItem value="Certification Authority">Certification Authority</MenuItem>
-          </Select>
-        </FormControl>
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          fullWidth
-          disabled={loading}
-        >
-          {loading ? "Signing Up..." : "Sign Up"}
-        </Button>
-      </Box>
-      {error && (
-        <Alert severity="error" sx={{ mt: 3 }}>
-          {error}
-        </Alert>
-      )}
-      <Grid container justifyContent="center" sx={{ mt: 2 }}>
-        <Grid item>
-          <Typography variant="body2">
-            Already have an account?{" "}
-            <Button color="secondary" onClick={goToLoginPage}>
-              Log In
-            </Button>
+    <Container maxWidth="sm" className="container">
+      <CssBaseline />
+      <div className="card">
+        <Box className="card-header">
+          <Typography variant="h5" className="title">
+            Create an Account
           </Typography>
+          <Typography variant="body1" className="subtitle">
+            Please fill in the details to sign up for your account.
+          </Typography>
+        </Box>
+        <Box
+          component="form"
+          onSubmit={handleSignUp}
+          className="form-container"
+        >
+          <TextField
+            label="Email"
+            variant="outlined"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            fullWidth
+            required
+          />
+          <TextField
+            label="Password"
+            type="password"
+            variant="outlined"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            fullWidth
+            required
+          />
+          <FormControl fullWidth>
+            <InputLabel id="role-select-label">Role</InputLabel>
+            <Select
+              labelId="role-select-label"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              required
+            >
+              <MenuItem value="" disabled>
+                Select Role
+              </MenuItem>
+              <MenuItem value="Manufacturer">Manufacturer</MenuItem>
+              <MenuItem value="Courier">Courier</MenuItem>
+              <MenuItem value="Certification Authority">Certification Authority</MenuItem>
+              <MenuItem value="Customer">Customer</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            type="submit"
+            variant="contained"
+            
+           
+            disabled={loading}
+            className="sss"
+          >
+            {loading ? "Signing Up..." : "Sign Up"}
+          </Button>
+        </Box>
+        {error && (
+          <Alert severity="error" className="error-alert">
+            {error}
+          </Alert>
+        )}
+        <Grid container justifyContent="center" className="login-link">
+          <Grid item>
+            <Typography variant="body2" className="login-text">
+              Already have an account?{" "}
+              <Button className="login-button" onClick={goToLoginPage}>
+                Log In
+              </Button>
+            </Typography>
+          </Grid>
         </Grid>
-      </Grid>
+      </div>
     </Container>
   );
 };

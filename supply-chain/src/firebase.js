@@ -7,16 +7,17 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDpmILAMo1F8bwN-Qlh8__1VvOozQ9zrfE",
-  authDomain: "supply-chain-8011d.firebaseapp.com",
-  projectId: "supply-chain-8011d",
-  storageBucket: "supply-chain-8011d.firebasestorage.app",
-  messagingSenderId: "58061519693",
-  appId: "1:58061519693:web:0560278cf9ef2c171f9504",
-  measurementId: "G-JJ4WMP2SJ7",
-};
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQqraxKugSrutzxz5O1CqWuGb0JeZvmvY",
+    authDomain: "trace-craft.firebaseapp.com",
+    projectId: "trace-craft",
+    storageBucket: "trace-craft.firebasestorage.app",
+    messagingSenderId: "485981815382",
+    appId: "1:485981815382:web:2dcbad880a28418d73b1f7",
+    measurementId: "G-GM237SCG8K"
+  };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

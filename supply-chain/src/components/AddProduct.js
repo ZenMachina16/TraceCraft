@@ -1,31 +1,22 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Web3 from "web3";
-import { QRCodeCanvas } from "qrcode.react";
-import {
-  Container,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Grid,
-  Paper,
-  Divider,
-} from "@mui/material";
+import { Container, TextField, Button, Typography, Box, Paper, Divider, Snackbar, Alert } from "@mui/material";
 import { contractAddress, contractABI } from "../config/contractConfig";
+import axios from "axios";
+import { auth, db } from "../firebase"; // Import Firebase Auth and Firestore
+import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
+import { QRCodeCanvas } from "qrcode.react"; // Import QRCodeCanvas
+import html2canvas from "html2canvas"; // Import html2canvas
 
 const AddProduct = () => {
   const [productId, setProductId] = useState(1);
-  const [productName, setProductName] = useState("Laptop");
-  const [productPrice, setProductPrice] = useState(500);
-  const [manufacturerName, setManufacturerName] = useState("ABC Corp");
-  const [manufacturerDetails, setManufacturerDetails] = useState(
-    "Leading Electronics Manufacturer"
-  );
-  const [longitude, setLongitude] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [productCategory, setProductCategory] = useState("Electronics");
-  const [qrCodeVisible, setQrCodeVisible] = useState(false);
-  const qrCodeRef = useRef(null);
+  const [batchId, setBatchId] = useState(1);
+
+  // Customer Fields
+  const [customerName, setCustomerName] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerPhoneNumber, setCustomerPhoneNumber] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
 
   // MetaMask connection
   const [walletAddress, setWalletAddress] = useState("");
@@ -33,25 +24,13 @@ const AddProduct = () => {
   const [contract, setContract] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Fetch user location
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLatitude(position.coords.latitude.toString());
-          setLongitude(position.coords.longitude.toString());
-        },
-        (error) => {
-          console.error("Error fetching location:", error);
-          setLatitude("Unavailable");
-          setLongitude("Unavailable");
-        }
-      );
-    } else {
-      setLatitude("Unsupported");
-      setLongitude("Unsupported");
-    }
-  }, []);
+  // Snackbar state
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  // QR Code state
+  const [qrCodeValue, setQrCodeValue] = useState("");
 
   // Auto-connect MetaMask
   useEffect(() => {
@@ -61,7 +40,6 @@ const AddProduct = () => {
           const accounts = await window.ethereum.request({
             method: "eth_requestAccounts",
           });
-          setWalletAddress(accounts[0]);
           setIsConnected(true);
 
           const web3Instance = new Web3(window.ethereum);
@@ -72,6 +50,19 @@ const AddProduct = () => {
             contractAddress
           );
           setContract(contractInstance);
+
+          // Fetch the user's wallet address from Firestore
+          const user = auth.currentUser;
+          if (user) {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+              setWalletAddress(userDoc.data().walletAddress);
+            } else {
+              console.error("User document not found in Firestore.");
+            }
+          } else {
+            console.error("No authenticated user found.");
+          }
         } catch (err) {
           console.error("MetaMask connection failed:", err);
         }
@@ -83,7 +74,43 @@ const AddProduct = () => {
     autoConnectMetaMask();
   }, []);
 
-  // Add product
+  // Send email using Brevo (Sendinblue) API
+  const sendEmail = async () => {
+    const apiKey ='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'; // Replace with your Brevo API key
+
+    const emailData = {
+      sender: { email: "codeofduty24@gmail.com" },
+      to: [{ email: customerEmail }],
+      subject: `Product Details - Product ID: ${productId}`,
+      htmlContent: `
+        <h3>Product Details</h3>
+        <p><strong>Product ID:</strong> ${productId}</p>
+        <p><strong>Batch ID:</strong> ${batchId}</p>
+        <p><strong>Customer Name:</strong> ${customerName}</p>
+        <p><strong>Customer Address:</strong> ${customerAddress}</p>
+        <p><strong>Customer Phone Number:</strong> ${customerPhoneNumber}</p>
+        <p><strong>Customer Email:</strong> ${customerEmail}</p>
+      `,
+    };
+
+    try {
+      const response = await axios.post(
+        "https://api.brevo.com/v3/smtp/email",
+        emailData,
+        {
+          headers: {
+            "api-key": apiKey,
+            "Content-Type": "application/json",
+          }
+        }
+      );
+      console.log("Email sent successfully:", response.data);
+    } catch (error) {
+      console.error("Error sending email:", error);
+    }
+  };
+
+  // Add product and send email
   const addProduct = async () => {
     if (!web3 || !contract || !walletAddress) {
       console.error("Web3, contract, or walletAddress is not available.");
@@ -91,52 +118,56 @@ const AddProduct = () => {
     }
 
     try {
-      await contract.methods
+      // Call the smart contract function to add the product with all fields
+      const result = await contract.methods
         .addProduct(
           productId,
-          productName,
-          productPrice,
-          manufacturerName,
-          manufacturerDetails,
-          longitude,
-          latitude,
-          productCategory
+          batchId,
+          customerName,
+          customerAddress,
+          customerPhoneNumber,
+          customerEmail
         )
         .send({ from: walletAddress });
 
+      const newProductId = result.events.ProductAdded.returnValues.productId;
+      setProductId(newProductId);
+      setQrCodeValue(newProductId); // Set the QR code value to the new product ID
+
       console.log("Product added successfully");
-      setQrCodeVisible(true);
+
+      // Send email to the customer with product details
+      await sendEmail();
+      console.log("Email sent to customer successfully");
+
+      setError(false);
+      setMessage("Product added and email sent successfully.");
     } catch (error) {
-      console.error("Error adding product:", error);
+      console.error("Error adding product or sending email:", error);
+      setError(true);
+      setMessage("Error adding product or sending email. Please try again.");
+    } finally {
+      setSnackbarOpen(true);
     }
   };
 
-  // Print QR code
-  const printQRCode = () => {
-    if (qrCodeRef.current) {
-      const canvas = qrCodeRef.current.querySelector("canvas");
-      if (canvas) {
-        const qrImage = canvas.toDataURL();
-        const printWindow = window.open("", "_blank");
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Print QR Code</title>
-            </head>
-            <body style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-              <img src="${qrImage}" alt="QR Code" style="max-width: 100%; height: auto;" />
-              <script>
-                window.onload = function() {
-                  window.print();
-                  window.close();
-                };
-              </script>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-      }
-    }
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
+
+  const handlePrint = () => {
+    const qrCodeElement = document.getElementById("qrCode");
+    html2canvas(qrCodeElement).then((canvas) => {
+      const imgData = canvas.toDataURL("image/png");
+      const printWindow = window.open("", "_blank");
+      printWindow.document.write(`<html><head><title>Print QR Code</title></head><body>`);
+      printWindow.document.write(`<div style="text-align: center;">`);
+      printWindow.document.write(`<h1>Product ID: ${productId}</h1>`);
+      printWindow.document.write(`<img src="${imgData}" />`);
+      printWindow.document.write(`</div></body></html>`);
+      printWindow.document.close();
+      printWindow.print();
+    });
   };
 
   return (
@@ -147,109 +178,95 @@ const AddProduct = () => {
         </Typography>
         <Divider sx={{ mb: 3 }} />
         <Box component="form" noValidate autoComplete="off">
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                label="Product ID"
-                type="number"
-                fullWidth
-                value={productId}
-                onChange={(e) => setProductId(e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Product Name"
-                fullWidth
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Product Price"
-                type="number"
-                fullWidth
-                value={productPrice}
-                onChange={(e) => setProductPrice(e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Manufacturer Name"
-                fullWidth
-                value={manufacturerName}
-                onChange={(e) => setManufacturerName(e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Manufacturer Details"
-                fullWidth
-                value={manufacturerDetails}
-                onChange={(e) => setManufacturerDetails(e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Longitude"
-                fullWidth
-                value={longitude || "Fetching..."}
-                InputProps={{ readOnly: true }}
-              />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                label="Latitude"
-                fullWidth
-                value={latitude || "Fetching..."}
-                InputProps={{ readOnly: true }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Product Category"
-                fullWidth
-                value={productCategory}
-                onChange={(e) => setProductCategory(e.target.value)}
-              />
-            </Grid>
-          </Grid>
+          <TextField
+            label="Product ID"
+            type="number"
+            fullWidth
+            value={productId}
+            onChange={(e) => setProductId(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Batch ID"
+            type="number"
+            fullWidth
+            value={batchId}
+            onChange={(e) => setBatchId(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Customer Name"
+            fullWidth
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Customer Address"
+            fullWidth
+            value={customerAddress}
+            onChange={(e) => setCustomerAddress(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Customer Phone Number"
+            type="tel"
+            fullWidth
+            value={customerPhoneNumber}
+            onChange={(e) => setCustomerPhoneNumber(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Customer Email"
+            type="email"
+            fullWidth
+            value={customerEmail}
+            onChange={(e) => setCustomerEmail(e.target.value)}
+            sx={{ mb: 2 }}
+          />
           <Box sx={{ mt: 3, textAlign: "center" }}>
             <Button
               variant="contained"
               color="primary"
               onClick={addProduct}
               fullWidth
-              disabled={!longitude || !latitude || !isConnected}
+              disabled={!isConnected}
             >
               Add Product
             </Button>
           </Box>
+          {qrCodeValue && (
+            <Box mt={4} textAlign="center">
+              <Typography variant="h6">QR Code for Product ID: {productId}</Typography>
+              <div id="qrCode">
+                <QRCodeCanvas value={qrCodeValue} size={256} />
+              </div>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={handlePrint}
+                style={{ marginTop: "20px" }}
+              >
+                Print QR Code
+              </Button>
+            </Box>
+          )}
         </Box>
-
-        {qrCodeVisible && (
-          <Box sx={{ mt: 4, textAlign: "center" }}>
-            <Typography variant="h5" gutterBottom>
-              QR Code for Product ID: {productId}
-            </Typography>
-            <div
-              ref={qrCodeRef}
-              style={{ display: "inline-block", marginBottom: "20px" }}
-            >
-              <QRCodeCanvas value={`${productId}`} size={200} />
-            </div>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={printQRCode}
-              sx={{ mt: 2 }}
-            >
-              Print QR Code
-            </Button>
-          </Box>
-        )}
       </Paper>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={error ? "error" : "success"}
+          sx={{ width: "100%" }}
+        >
+          {message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
