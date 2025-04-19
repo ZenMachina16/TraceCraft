@@ -44,9 +44,9 @@ Global supply chains today suffer from opacity, inefficiencies, and a lack of ve
 - 📱 **QR Code Interface:** Simple scanning flow for all participants.
 - 📊 **Stakeholder Dashboards:** Custom views for manufacturers, carriers, certifiers, and consumers.
 
-## Architecture
+## Architecture!
+[!Architecture Diagram](https://github.com/user-attachments/assets/3ba3368b-e018-45ce-bda1-3c798009f72f)
 
-![Architecture Diagram]("C:\Users\DELL\OneDrive\Pictures\Screenshots\Screenshot 2025-04-19 093930.png")
 
 1. **Frontend:** React.js application for stakeholders and consumers.
 2. **Backend API:** Node.js/Express service interfacing with blockchain and database.
