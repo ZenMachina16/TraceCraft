@@ -46,6 +46,8 @@ Global supply chains today suffer from opacity, inefficiencies, and a lack of ve
 
 ## Architecture!
 ![Architecture Diagram](https://github.com/user-attachments/assets/3ba3368b-e018-45ce-bda1-3c798009f72f)
+![Use-Case Diagram](https://github.com/user-attachments/assets/cd67b9ae-f8a2-4f16-bd66-7e77741a25ec)
+
 
 
 1. **Frontend:** React.js application for stakeholders and consumers.
