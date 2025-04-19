@@ -45,7 +45,7 @@ Global supply chains today suffer from opacity, inefficiencies, and a lack of ve
 - 📊 **Stakeholder Dashboards:** Custom views for manufacturers, carriers, certifiers, and consumers.
 
 ## Architecture!
-[!Architecture Diagram](https://github.com/user-attachments/assets/3ba3368b-e018-45ce-bda1-3c798009f72f)
+![Architecture Diagram](https://github.com/user-attachments/assets/3ba3368b-e018-45ce-bda1-3c798009f72f)
 
 
 1. **Frontend:** React.js application for stakeholders and consumers.
