@@ -46,7 +46,7 @@ Global supply chains today suffer from opacity, inefficiencies, and a lack of ve
 
 ## Architecture
 
-![Architecture Diagram](https://drive.google.com/file/d/1dPZ8CG_uhn6KMBI5ZeDWpQ8HaHQFIviB/view?usp=sharing)
+![Architecture Diagram]("C:\Users\DELL\OneDrive\Pictures\Screenshots\Screenshot 2025-04-19 093930.png")
 
 1. **Frontend:** React.js application for stakeholders and consumers.
 2. **Backend API:** Node.js/Express service interfacing with blockchain and database.
