@@ -89,7 +89,7 @@ Our solution advances **SDG 17: Partnerships for the Goals** by:
 | Binayak          | Blockchain & Backend    | https://linkedin.com/in/binayak16                   | https://github.com/ZenMachina16 |
 | Tejas Patil      | Frontend & UI/UX        | https://linkedin.com/in/tejaspatil4032              | https://github.com/tejas4032  |
 | Harsh Kapse      | Data & DevOps           | https://linkedin.com/in/harsh-kapse-b921112ab       | https://github.com/kap432     |
-| Atharva Phadtare | QA & Integration        | https://linkedin.com/in/atharva-phadtare-042b16259  | [GitHub link]()                |
+| Atharva Phadtare | QA & Integration        | https://linkedin.com/in/atharva-phadtare-042b16259  | https://github.com/atharvamp04|
 
 ## Getting Started
 
