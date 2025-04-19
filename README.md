@@ -123,5 +123,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-&copy; 2025 Supply Chain Transparency Network
+&copy; 2025 The Code of Duty
 
